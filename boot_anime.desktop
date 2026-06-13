@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Anime Startup
+Exec=xterm -fullscreen -fa Monospace -fs 20 -e /home/lab/Desktop/uav-backup-host/boot_script_rpi5_anime.sh
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=5
+Terminal=false
