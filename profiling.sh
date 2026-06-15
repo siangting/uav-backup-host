@@ -7,7 +7,7 @@ set -e
 # =========================
 RUN_DURATION=20   # seconds（agent 運行時間）
 REST_DURATION=10   # seconds（兩輪間隔）
-LOOP_COUNT=1000
+LOOP_COUNT=100
 
 # =========================
 # LOG 設定
@@ -65,8 +65,10 @@ for ((i=1; i<=LOOP_COUNT; i++)); do
 
     log "Stopping processes"
 
-    docker stop $AGENT_NAME >> $LOG_FILE 2>&1 || true
-    docker rm $AGENT_NAME >> $LOG_FILE 2>&1 || true
+    # 用 docker kill (SIGKILL) 取代 docker stop (SIGTERM + 10s grace period)
+    # → agent 立刻死亡，backup_time 才能反映真實偵測延遲
+    docker kill $AGENT_NAME >> $LOG_FILE 2>&1 || true
+    docker rm   $AGENT_NAME >> $LOG_FILE 2>&1 || true
 
     kill $PUB_PID 2>/dev/null || true
     wait $PUB_PID 2>/dev/null || true
