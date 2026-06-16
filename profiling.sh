@@ -7,7 +7,7 @@ set -e
 # =========================
 RUN_DURATION=20   # seconds（agent 運行時間）
 REST_DURATION=10   # seconds（兩輪間隔）
-LOOP_COUNT=100
+LOOP_COUNT=1000
 
 # =========================
 # LOG 設定
@@ -50,7 +50,7 @@ for ((i=1; i<=LOOP_COUNT; i++)); do
     log "Agent container started"
 
     log "Sourcing ROS2 environment"
-    source /opt/ros/humble/setup.bash
+    source /opt/ros/jazzy/setup.bash
 
     log "Starting heartbeat publisher"
     ros2 topic pub /heartbeat std_msgs/msg/Header \
