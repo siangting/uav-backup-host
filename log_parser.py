@@ -1,6 +1,8 @@
 """
 Shared helpers: log parsing + auto-locate latest log files + result dir.
 """
+import bisect
+import csv
 import re
 from datetime import datetime
 from pathlib import Path
@@ -56,8 +58,70 @@ def parse_host_log(path: Path):
     return {"start": start, "stop": stop}
 
 
+def first_in_each_window(anchors, events):
+    """Pair each `anchors[i]` with the first `events` entry timestamped at or
+    after it and before `anchors[i + 1]` (the last window is open-ended).
+
+    Returns a list the same length as `anchors`; entries with no matching
+    event are None.
+
+    Why this instead of pairing by array position (`events[i]`): the agent
+    connection sometimes flickers (disconnects/reconnects more than once)
+    within a single round, so pico can log more conn/disc/backup events than
+    there are host rounds. Once that happens, positional pairing drifts out
+    of sync for every later round and produces nonsense (often negative)
+    deltas. Matching by which round's time window an event actually falls
+    in is robust to that — extra events inside a window are simply ignored.
+
+    Both `anchors` and `events` must already be chronologically sorted
+    (true for everything this module parses, since log lines are appended
+    in time order).
+    """
+    out = []
+    for i, lo in enumerate(anchors):
+        hi = anchors[i + 1] if i + 1 < len(anchors) else None
+        lo_idx = bisect.bisect_left(events, lo)
+        hi_idx = bisect.bisect_left(events, hi) if hi is not None else len(events)
+        out.append(events[lo_idx] if lo_idx < hi_idx else None)
+    return out
+
+
+def events_in_each_window(anchors, events):
+    """Like `first_in_each_window`, but return the *full list* of `events`
+    falling in [anchors[i], anchors[i + 1]) (last window open-ended) instead
+    of just the first one. Useful when you need to know how many extra
+    (flicker) events landed in a round, not just the first.
+    """
+    out = []
+    for i, lo in enumerate(anchors):
+        hi = anchors[i + 1] if i + 1 < len(anchors) else None
+        lo_idx = bisect.bisect_left(events, lo)
+        hi_idx = bisect.bisect_left(events, hi) if hi is not None else len(events)
+        out.append(events[lo_idx:hi_idx])
+    return out
+
+
+def first_at_or_after(ts, events):
+    """Return the first `events` entry timestamped at or after `ts`, or None."""
+    idx = bisect.bisect_left(events, ts)
+    return events[idx] if idx < len(events) else None
+
+
 def ms_between(a: datetime, b: datetime) -> float:
     return (b - a).total_seconds() * 1000.0
+
+
+def save_csv(path: Path, headers, rows) -> Path:
+    """Write `rows` (iterable of iterables) to a CSV file at `path` with
+    `headers` as the first line. Creates parent dirs as needed.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        writer.writerows(rows)
+    return path
 
 
 def stat_block(values, unit="ms") -> str:

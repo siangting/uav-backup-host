@@ -8,11 +8,12 @@ Plot 1: Pico Boot Time
 import matplotlib.pyplot as plt
 import numpy as np
 from log_parser import (
-    latest_log, parse_pico_log, ensure_result_dir, stat_block,
+    latest_log, parse_pico_log, ensure_result_dir, stat_block, save_csv,
 )
 
 PICO_LOG = latest_log("pico")
 OUT_PNG  = ensure_result_dir() / "plot_boot_time.png"
+OUT_CSV  = ensure_result_dir() / "plot_boot_time.csv"
 
 data = parse_pico_log(PICO_LOG)
 boot = data["boot"]
@@ -21,31 +22,54 @@ if not boot:
 
 print(f"[boot] loaded {len(boot)} samples from {PICO_LOG.name}")
 
-fig, ax = plt.subplots(figsize=(9, 5))
 x = np.arange(1, len(boot) + 1)
-ax.bar(x, boot, color="#4C9AFF", edgecolor="black",
-       width=0.6 if len(boot) <= 30 else 1.0)
+boot_ms = np.array(boot, dtype=float)
+save_csv(OUT_CSV, ["power_on", "boot_time_ms"], zip(x, boot))
+print(f"[boot] saved -> {OUT_CSV}")
 
-mean = float(np.mean(boot))
-ax.axhline(mean, color="red", linestyle="--", linewidth=1.2,
-           label=f"mean = {mean:.0f} ms")
+fig, (ax_h, ax_t) = plt.subplots(1, 2, figsize=(13, 5),
+                                 gridspec_kw={"width_ratios": [1, 1.4]})
 
-# Per-bar labels only when N is small enough to be readable
-if len(boot) <= 30:
-    for xi, v in zip(x, boot):
-        ax.text(xi, v, f"{v}", ha="center", va="bottom", fontsize=9)
+# ----- left: histogram -----
+bins = max(10, min(60, int(np.sqrt(boot_ms.size) * 2)))
+ax_h.hist(boot_ms, bins=bins, color="#4C9AFF",
+          edgecolor="black", linewidth=0.5)
+ax_h.axvline(boot_ms.mean(), color="black", linestyle="--", linewidth=1.2,
+             label=f"mean = {boot_ms.mean():.1f} ms")
+ax_h.axvline(np.percentile(boot_ms, 95), color="orange", linestyle=":",
+             linewidth=1.2, label=f"p95 = {np.percentile(boot_ms, 95):.1f} ms")
+ax_h.set_xlabel("Boot time (ms)")
+ax_h.set_ylabel("count")
+ax_h.set_title("Distribution")
+ax_h.grid(axis="y", linestyle=":", alpha=0.5)
+ax_h.legend(loc="upper right")
+ax_h.text(0.02, 0.97, stat_block(boot_ms), transform=ax_h.transAxes, va="top",
+          family="monospace", fontsize=9,
+          bbox=dict(boxstyle="round", facecolor="white", alpha=0.85))
 
-ax.set_xlabel("Power-on #")
-ax.set_ylabel("Boot time (ms)")
-ax.set_title(f"Pico Boot Time   ({PICO_LOG.name})")
-ax.set_ylim(0, max(boot) * 1.18)
-ax.grid(axis="y", linestyle=":", alpha=0.5)
-ax.legend(loc="upper right")
+# ----- right: time series -----
+ax_t.scatter(x, boot_ms, s=14, alpha=0.6, color="#4C9AFF",
+             edgecolor="black", linewidth=0.3, label="per power-on")
+window = max(5, boot_ms.size // 20)
+if boot_ms.size >= window:
+    kernel = np.ones(window) / window
+    rolling = np.convolve(boot_ms, kernel, mode="valid")
+    # rolling-mean x positions are aligned to the (window-1)..end-th sample
+    x_r = x[window - 1:]
+    ax_t.plot(x_r, rolling, color="black", linewidth=1.8,
+              label=f"rolling mean (w={window})")
+ax_t.axhline(boot_ms.mean(), color="black", linestyle="--", linewidth=0.8,
+             alpha=0.5, label=f"overall mean = {boot_ms.mean():.1f} ms")
+ax_t.set_xlabel("Power-on #")
+ax_t.set_ylabel("Boot time (ms)")
+ax_t.set_title("Per-Power-On Time Series")
+ax_t.grid(linestyle=":", alpha=0.5)
+ax_t.legend(loc="upper right", fontsize=9)
 
-ax.text(0.02, 0.97, stat_block(boot), transform=ax.transAxes, va="top",
-        family="monospace", fontsize=9,
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.85))
-
+fig.suptitle(
+    f"Pico Boot Time   ({PICO_LOG.name})",
+    fontsize=11, y=1.02
+)
 plt.tight_layout()
-plt.savefig(OUT_PNG, dpi=150)
+plt.savefig(OUT_PNG, dpi=150, bbox_inches="tight")
 print(f"[boot] saved -> {OUT_PNG}")

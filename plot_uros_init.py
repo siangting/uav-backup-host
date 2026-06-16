@@ -8,11 +8,12 @@ Plot 2: micro-ROS init time
 import matplotlib.pyplot as plt
 import numpy as np
 from log_parser import (
-    latest_log, parse_pico_log, ensure_result_dir, stat_block,
+    latest_log, parse_pico_log, ensure_result_dir, stat_block, save_csv,
 )
 
 PICO_LOG = latest_log("pico")
 OUT_PNG  = ensure_result_dir() / "plot_uros_init.png"
+OUT_CSV  = ensure_result_dir() / "plot_uros_init.csv"
 
 data = parse_pico_log(PICO_LOG)
 init = np.array(data["init"], dtype=float)
@@ -20,6 +21,10 @@ if init.size == 0:
     raise SystemExit(f"no [T_UROS_INIT] line in {PICO_LOG}")
 
 print(f"[init] loaded {init.size} samples from {PICO_LOG.name}")
+
+save_csv(OUT_CSV, ["round", "init_time_ms"],
+         zip(range(1, init.size + 1), init))
+print(f"[init] saved -> {OUT_CSV}")
 
 fig, (ax_h, ax_t) = plt.subplots(1, 2, figsize=(13, 5),
                                  gridspec_kw={"width_ratios": [1, 1.4]})

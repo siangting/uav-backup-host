@@ -1,66 +1,52 @@
 """
 Plot 4: Backup time
-- backup_time = pico (first  [EVT] Backup activation completed  after each
-                       [EVT] AGENT_DISCONNECTED)
+- backup_time = pico (first  [EVT] Backup activation completed  in the round's
+                       window, i.e. after host "Stopping processes" and before
+                       the next round's stop)
               - host  "Stopping processes"
 - One value per round.
 
-Why "first backup after disconnect" instead of just AGENT_DISCONNECTED:
-  AGENT_DISCONNECTED is the *detection* event. The next "Backup activation
-  completed" is the moment Pico actually writes 1000us to the backup servo —
-  the real end-to-end "agent dead → backup running" point.
-
-  Note: at initial boot Pico has no agent yet and emits many "Backup activation
-  completed" before round 1's AGENT_DISCONNECTED. Those are filtered out by
-  only taking the first backup line *after* each disconnect.
+Why "first backup after stop" instead of pairing events by array position:
+  Pico's connection sometimes flickers (disconnects/reconnects more than
+  once) within a single round, so it can log more AGENT_DISCONNECTED /
+  Backup-activation lines than there are host rounds. Pairing stop[i] with
+  backup[i] by plain index breaks the moment that happens — every later
+  round ends up paired with the wrong round's backup line, producing
+  nonsense (often negative) deltas. Matching each stop to the first backup
+  line that actually falls inside its time window is robust to that, and
+  also naturally discards the many "Backup activation completed" lines
+  Pico emits before round 1 even starts (no agent yet at initial boot) —
+  those timestamps fall before stops[0], so they're outside every window.
 """
 import matplotlib.pyplot as plt
 import numpy as np
 from log_parser import (
     latest_log, parse_pico_log, parse_host_log, ensure_result_dir,
-    stat_block, ms_between,
+    stat_block, ms_between, save_csv, first_in_each_window,
 )
 
 PICO_LOG = latest_log("pico")
 HOST_LOG = latest_log("host")
 OUT_PNG  = ensure_result_dir() / "plot_backup_time.png"
+OUT_CSV  = ensure_result_dir() / "plot_backup_time.csv"
 
 pico = parse_pico_log(PICO_LOG)
 host = parse_host_log(HOST_LOG)
 stops   = host["stop"]
-discs   = pico["disc"]
 backups = pico["backup"]
 
+first_backups = first_in_each_window(stops, backups)
 
-def first_backup_after_each_disconnect(discs, backups):
-    """For each disconnect timestamp, return the next backup timestamp.
-
-    Both lists are already in chronological order (events appended to log
-    in time order), so we can sweep in O(n+m).
-    """
-    out, j = [], 0
-    for d in discs:
-        # advance j past anything before this disconnect
-        while j < len(backups) and backups[j] < d:
-            j += 1
-        out.append(backups[j] if j < len(backups) else None)
-    return out
-
-
-first_backups = first_backup_after_each_disconnect(discs, backups)
-
-n = min(len(stops), len(first_backups))
-if n == 0:
-    raise SystemExit("no paired stop / first-backup events")
-
-pairs = []
-for i in range(n):
-    if first_backups[i] is None:
-        continue
-    pairs.append((i + 1, ms_between(stops[i], first_backups[i])))
+pairs = [(i + 1, ms_between(stops[i], first_backups[i]))
+         for i in range(len(stops)) if first_backups[i] is not None]
+if not pairs:
+    raise SystemExit("no paired stop / backup events")
 rounds_idx = np.array([p[0] for p in pairs])
 backup_ms  = np.array([p[1] for p in pairs], dtype=float)
 print(f"[backup] {backup_ms.size} pairs; mean={backup_ms.mean():.1f} ms")
+
+save_csv(OUT_CSV, ["round", "backup_time_ms"], pairs)
+print(f"[backup] saved -> {OUT_CSV}")
 
 fig, (ax_h, ax_t) = plt.subplots(1, 2, figsize=(13, 5),
                                  gridspec_kw={"width_ratios": [1, 1.4]})
