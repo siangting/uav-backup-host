@@ -53,8 +53,8 @@ for ((i=1; i<=LOOP_COUNT; i++)); do
     source /opt/ros/jazzy/setup.bash
 
     log "Starting heartbeat publisher"
-    ros2 topic pub /heartbeat std_msgs/msg/Header \
-        "{stamp: {sec: 0, nanosec: 0}, frame_id: 'test'}" -r 10 \
+    ros2 topic pub /heartbeat std_msgs/msg/Empty \
+        "{}" -r 10 \
         >> $LOG_FILE 2>&1 &
 
     PUB_PID=$!

@@ -53,9 +53,13 @@ def parse_host_log(path: Path):
     text = Path(path).read_text(errors="ignore")
     start = [_parse_ts(m.group(1)) for m in re.finditer(
         TS_RE + r"\s*\|\s*Starting micro-ROS agent", text)]
+    agent_ready = [_parse_ts(m.group(1)) for m in re.finditer(
+        TS_RE + r"\s*\|\s*Agent container started", text)]
     stop = [_parse_ts(m.group(1)) for m in re.finditer(
         TS_RE + r"\s*\|\s*Stopping processes", text)]
-    return {"start": start, "stop": stop}
+    stopped = [_parse_ts(m.group(1)) for m in re.finditer(
+        TS_RE + r"\s*\|\s*Processes stopped", text)]
+    return {"start": start, "agent_ready": agent_ready, "stop": stop, "stopped": stopped}
 
 
 def first_in_each_window(anchors, events):
@@ -99,6 +103,13 @@ def events_in_each_window(anchors, events):
         hi_idx = bisect.bisect_left(events, hi) if hi is not None else len(events)
         out.append(events[lo_idx:hi_idx])
     return out
+
+
+def events_in_range(lo, hi, events):
+    """Return all events in [lo, hi). hi=None means open-ended."""
+    lo_idx = bisect.bisect_left(events, lo)
+    hi_idx = bisect.bisect_left(events, hi) if hi is not None else len(events)
+    return events[lo_idx:hi_idx]
 
 
 def first_at_or_after(ts, events):
