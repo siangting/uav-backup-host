@@ -3,12 +3,16 @@ Shared helpers: log parsing + auto-locate latest log files + result dir.
 """
 import bisect
 import csv
+import os
 import re
 from datetime import datetime
 from pathlib import Path
 
-LOG_DIR    = Path("log")
-RESULT_DIR = Path("result")
+# Both directories can be overridden via environment variables so plot.sh can
+# point them at a single timeout's subfolder (e.g. LOG_DIR=log/1ms
+# RESULT_DIR=result/1ms) and produce per-timeout figures without copying files.
+LOG_DIR    = Path(os.environ.get("LOG_DIR", "boot_time/100ms"))
+RESULT_DIR = Path(os.environ.get("RESULT_DIR", "result"))
 
 TS_RE = r"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\]"
 

@@ -8,6 +8,7 @@ reconnect_count per round = AGENT_CONNECTED events in that window - 1
   (subtract 1 for the initial connection after the container becomes ready)
 """
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 import numpy as np
 from log_parser import (
     latest_log, parse_pico_log, parse_host_log, ensure_result_dir,
@@ -50,7 +51,7 @@ print(f"[flicker] {n_flickered}/{n_rounds} rounds had reconnects "
       f"(max {reconnect_counts.max()})")
 
 # ---- bar chart (rounds by reconnect count) + scatter (per-round over time) ----
-fig, (ax_b, ax_s) = plt.subplots(1, 2, figsize=(13, 5),
+fig, (ax_b, ax_s) = plt.subplots(1, 2, figsize=(18, 5), layout="constrained",
                                   gridspec_kw={"width_ratios": [1, 1.4]})
 
 max_reconnect = int(reconnect_counts.max())
@@ -63,7 +64,7 @@ for lvl, cnt in zip(levels, level_counts):
 ax_b.set_xlabel("Reconnects within the round")
 ax_b.set_ylabel("Round count")
 ax_b.set_title(f"Rounds by Reconnect Count  ({n_flickered}/{n_rounds} flickered)")
-ax_b.set_xticks(levels)
+ax_b.xaxis.set_major_locator(MultipleLocator(5))   # x ticks at 0, 5, 10, ...
 ax_b.grid(axis="y", linestyle=":", alpha=0.5)
 
 colors = np.where(reconnect_counts > 0, "#DE350B", "#36B37E")
@@ -74,16 +75,16 @@ ax_s.scatter([], [], s=20, c="#DE350B", edgecolor="black", label="flickered roun
 ax_s.set_xlabel("Round")
 ax_s.set_ylabel("Reconnects within the round")
 ax_s.set_title("Per-Round Reconnect Count")
-ax_s.set_yticks(levels)
+ax_s.yaxis.set_major_locator(MultipleLocator(5))   # y ticks at 0, 5, 10, ...
 ax_s.grid(linestyle=":", alpha=0.5)
-ax_s.legend(loc="upper right", fontsize=9)
+ax_s.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=9)
 
 fig.suptitle(
     "Reconnect Flicker   "
     "(rounds where Pico disconnected/reconnected more than once)\n"
     f"({PICO_LOG.name} | {HOST_LOG.name})",
-    fontsize=11, y=1.02,
+    fontsize=11,
 )
-plt.tight_layout()
-plt.savefig(OUT_PNG, dpi=150, bbox_inches="tight")
+fig.get_layout_engine().set(w_pad=0.08, wspace=0.05)
+plt.savefig(OUT_PNG, dpi=150)
 print(f"[flicker] saved -> {OUT_PNG}")

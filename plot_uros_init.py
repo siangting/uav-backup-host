@@ -26,7 +26,7 @@ save_csv(OUT_CSV, ["round", "init_time_ms"],
          zip(range(1, init.size + 1), init))
 print(f"[init] saved -> {OUT_CSV}")
 
-fig, (ax_h, ax_t) = plt.subplots(1, 2, figsize=(13, 5),
+fig, (ax_h, ax_t) = plt.subplots(1, 2, figsize=(18, 5), layout="constrained",
                                  gridspec_kw={"width_ratios": [1, 1.4]})
 
 # ----- left: histogram -----
@@ -41,9 +41,10 @@ ax_h.set_xlabel("micro-ROS init time (ms)")
 ax_h.set_ylabel("count")
 ax_h.set_title("Distribution")
 ax_h.grid(axis="y", linestyle=":", alpha=0.5)
-ax_h.legend(loc="upper right")
-ax_h.text(0.02, 0.97, stat_block(init), transform=ax_h.transAxes, va="top",
-          family="monospace", fontsize=9,
+# legend + stats box sit outside, to the right of the histogram axes
+ax_h.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=9)
+ax_h.text(1.02, 0.78, stat_block(init), transform=ax_h.transAxes,
+          va="top", ha="left", family="monospace", fontsize=9,
           bbox=dict(boxstyle="round", facecolor="white", alpha=0.85))
 
 # ----- right: time series -----
@@ -64,10 +65,10 @@ ax_t.set_xlabel("Round")
 ax_t.set_ylabel("micro-ROS init time (ms)")
 ax_t.set_title("Per-Round Time Series")
 ax_t.grid(linestyle=":", alpha=0.5)
-ax_t.legend(loc="upper right", fontsize=9)
+ax_t.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=9)
 
 fig.suptitle(f"micro-ROS Entities Init Time   ({PICO_LOG.name})",
-             fontsize=12, y=1.00)
-plt.tight_layout()
-plt.savefig(OUT_PNG, dpi=150, bbox_inches="tight")
+             fontsize=12)
+fig.get_layout_engine().set(w_pad=0.08, wspace=0.18)
+plt.savefig(OUT_PNG, dpi=150)
 print(f"[init] saved -> {OUT_PNG}")
