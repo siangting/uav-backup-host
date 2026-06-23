@@ -70,5 +70,6 @@ ax_t.legend(loc="upper left", bbox_to_anchor=(1.02, 1.0), fontsize=9)
 fig.suptitle(f"micro-ROS Entities Init Time   ({PICO_LOG.name})",
              fontsize=12)
 fig.get_layout_engine().set(w_pad=0.08, wspace=0.18)
-plt.savefig(OUT_PNG, dpi=150)
-print(f"[init] saved -> {OUT_PNG}")
+for out in (OUT_PNG, OUT_PNG.with_suffix(".pdf"), OUT_PNG.with_suffix(".svg")):
+    plt.savefig(out, dpi=150)
+    print(f"[init] saved -> {out}")

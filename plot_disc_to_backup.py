@@ -159,5 +159,6 @@ fig.suptitle(
     fontsize=11,
 )
 fig.get_layout_engine().set(w_pad=0.08, wspace=0.18)
-plt.savefig(OUT_PNG, dpi=150)
-print(f"[disc2backup] saved -> {OUT_PNG}")
+for out in (OUT_PNG, OUT_PNG.with_suffix(".pdf"), OUT_PNG.with_suffix(".svg")):
+    plt.savefig(out, dpi=150)
+    print(f"[disc2backup] saved -> {out}")

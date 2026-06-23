@@ -13,6 +13,7 @@ The zero-flicker region (timeout >= 20 ms) is shaded for emphasis.
 Output: result/flicker_by_timeout.png
 """
 import os
+from pathlib import Path
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -24,7 +25,7 @@ timeouts       = [1, 2, 3, 4, 5, 10, 20, 40, 80, 100, 160, 320, 640, 1000]
 rounds_flicker = [1000, 1000, 41, 648, 2, 6, 0, 0, 0, 0, 0, 0, 0, 0]
 total_recon    = [29061, 22114, 69, 1045, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0]
 
-OUT_PNG = os.environ.get("OUT", "result/flicker_by_timeout.png")
+OUT_PNG = Path(os.environ.get("OUT", "result/flicker_by_timeout.png"))
 
 x = np.arange(len(timeouts))
 labels = [str(t) for t in timeouts]
@@ -74,5 +75,6 @@ for xi, v in zip(x, total_recon):
     axR.text(xi, v * 1.7 + 0.3, str(v), ha="center", va="bottom", fontsize=8)
 
 fig.tight_layout()
-fig.savefig(OUT_PNG, dpi=150)
-print("saved", OUT_PNG)
+for out in (OUT_PNG, OUT_PNG.with_suffix(".pdf"), OUT_PNG.with_suffix(".svg")):
+    fig.savefig(out, dpi=150)
+    print("saved", out)
